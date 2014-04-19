@@ -1,5 +1,7 @@
-import numpy as np
+from __future__ import division
 
+import numpy as np
+import copy
 
 ### from http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user
 class _Getch:
@@ -86,19 +88,24 @@ class Dmqh(object):
                     pos+=1
         return col
                     
-    def play(self):
+    def play(self, auto=False):
         while(True):
             print ""
             print "current position:"
             print self
-            print "press one of the keys i,j,k or l in the console to move..."
-            c = getch()
-            print c + " pressed"
-            while not self.move(c):
-                print "move not allowed!"
+            suggestion = self.optimize(2)
+            print "press one of the keys i,j,k or l in the console to move... my advise:" \
+            , suggestion
+            if auto:
+                c = suggestion[0]
+                self.move(c)
+            else:
                 c = getch()
                 print c + " pressed"
-                
+                while not self.move(c):
+                    print "move not allowed!"
+                    c = getch()
+                    print c + " pressed"                
             self.add_number()
         return self
     
@@ -156,13 +163,83 @@ class Dmqh(object):
                 if val>last:
                     count_plus = False
                 else:
-                    total+=val
+                    total+=val**2
                     last = val
             if not count_plus:
-                total-=val
+                pass
+                ##total-=val/10
         return total
     
+    def copy(self):
+        return copy.deepcopy(self)
+    
+    def move_list(self):
+        """
+        iterator over the possible moves at that stage.
+        yields the tuple (direction, resulting_game)
+        """
+        for dir in ["i","j","k","l"]:
+            game = self.copy()
+            if game.move(dir):
+                yield dir, game
+    
+    def fill_list(self):
+        """
+        iterator over the possible random fills at that stage.
+        yields the resulting_game
+        """    
+        
+        for x,y in zip(*self.empty_places()):
+            for val in [2,4]:
+                game = self.copy()
+                game.dat[x,y] = val
+                yield game
+    
+    def mean_score(self, depth):
+        """
+        Computes the mean score.
+        """
+        
+        mean_val = 0
+        n_fill = 0
+        if depth==0:
+            for pos in res.fill_list():
+                n_fill+=1
+                mean_val = mean_val + pos.evaluate()
+            mean_val/=n_fill
+            return mean_val
+        
+        self.optimize(depth)
+        
+        
+    def optimize(self, depth):
+        if depth==0:
+            return ("", self.evaluate())
+        mean_scores = []
+        directions = []
+        for move, res in self.move_list():
+            if depth>10:
+                print "->"*(depth-1), move
+            mean_score = 0
+            n = 0
+            for pos in res.fill_list():
+                (dir, score) = pos.optimize(depth - 1)
+                n+=1
+                mean_score+=score
+            mean_score/=n
+            if depth>10:
+                print "->"*(depth-1), mean_score, dir
+            mean_scores.append(mean_score)
+            directions.append(move)
+        
+        if len(mean_scores)==0: ### GAME OVER
+            return ("", -1000000)
+        best = np.argmax(mean_scores)
+        return (directions[best], mean_scores[best])
+            
+            
+
     
 if __name__=="__main__":
     GAME = Dmqh(4)
-    GAME.play()
+    GAME.play(auto=True)

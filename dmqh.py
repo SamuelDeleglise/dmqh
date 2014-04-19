@@ -96,28 +96,32 @@ class Dmqh(object):
             c = getch()
             print c + " pressed"
             while not self.move(c):
-                pass
+                print "move not allowed!"
+                c = getch()
+                print c + " pressed"
+                
             self.add_number()
         return self
     
     
     def move(self, dir):
+        old_dat = np.copy(self.dat)
         if dir=="j":
             for i,col in enumerate(self.dat):
                 self.dat[i,:] = self.crunch(col)
-            return True
+            return not np.array_equal(self.dat, old_dat)
         if dir=='l':
             for i,col in enumerate(self.dat):
                 self.dat[i,:] = self.crunch(col[-1::-1])[-1::-1]
-            return True  
+            return not np.array_equal(self.dat, old_dat)
         if dir=='k':
             for i,col in enumerate(self.dat.T):
                 self.dat[:,i] = self.crunch(col[-1::-1])[-1::-1]
-            return True 
+            return not np.array_equal(self.dat, old_dat)
         if dir=='i':
             for i,col in enumerate(self.dat.T):
                 self.dat[:,i] = self.crunch(col)
-            return True
+            return not np.array_equal(self.dat, old_dat)
         return False
         
     def __repr__(self):

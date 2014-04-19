@@ -64,7 +64,7 @@ class Dmqh(object):
     
     def add_number(self):
         position = np.random.randint(len(self.empty_places()[0]))
-        val = 2**(1 + np.random.randint(2))
+        val = 2**(1 + np.random.randint(11)//10)
         where = self.empty_places()
         self.dat[where[0][position],where[1][position]] = val
         return self
@@ -93,7 +93,13 @@ class Dmqh(object):
             print ""
             print "current position:"
             print self
-            suggestion = self.optimize(2)
+            #depth = np.floor(10./(len(self.empty_places()[0])+1))
+            #depth = max(depth, 2)
+            #depth = min(depth, 3)
+            depth = 5
+            print "depth :", depth
+            
+            suggestion = self.optimize(depth)
             print "press one of the keys i,j,k or l in the console to move... my advise:" \
             , suggestion
             if auto:
@@ -138,6 +144,16 @@ class Dmqh(object):
             ret+='\n'
         return ret
     
+    def snake_coords(self):
+        revert_direction = True
+        for x,line in enumerate(self.dat):
+            revert_direction = not revert_direction
+            if revert_direction:
+                line = line[-1::-1]
+            for y, val in enumerate(line):
+                if revert_direction:
+                    y = self.n - y - 1
+                yield val, x, y
 
     def snake(self):
         revert_direction = True
@@ -167,7 +183,7 @@ class Dmqh(object):
                     last = val
             if not count_plus:
                 pass
-                ##total-=val/10
+                #total-=val**2/10
         return total
     
     def copy(self):
@@ -186,15 +202,32 @@ class Dmqh(object):
     def fill_list(self):
         """
         iterator over the possible random fills at that stage.
-        yields the resulting_game
+        yields the resulting_game. 
         """    
-        
+        """
+        n = 0
+        for val,x,y in self.snake_coords():
+            n+=1
+            if n>3:
+                break 
+            if val==0:
+                game = self.copy()
+                for v in [2,4]:
+                    game.dat[x,y] = v
+                    yield game
+        """            
+        for tries in range(2):
+            game = self.copy()
+            game.add_number()
+            yield game
+            
+        """
         for x,y in zip(*self.empty_places()):
             for val in [2,4]:
                 game = self.copy()
                 game.dat[x,y] = val
                 yield game
-    
+        """
     def mean_score(self, depth):
         """
         Computes the mean score.
@@ -217,28 +250,29 @@ class Dmqh(object):
             return ("", self.evaluate())
         mean_scores = []
         directions = []
+        previous_score = self.evaluate()
         for move, res in self.move_list():
             if depth>10:
                 print "->"*(depth-1), move
             mean_score = 0
             n = 0
+            if res.evaluate()<previous_score:
+                continue
             for pos in res.fill_list():
                 (dir, score) = pos.optimize(depth - 1)
+                
                 n+=1
+#                mean_score = min(mean_score, score)
                 mean_score+=score
             mean_score/=n
             if depth>10:
                 print "->"*(depth-1), mean_score, dir
             mean_scores.append(mean_score)
             directions.append(move)
-        
         if len(mean_scores)==0: ### GAME OVER
             return ("", -1000000)
         best = np.argmax(mean_scores)
         return (directions[best], mean_scores[best])
-            
-            
-
     
 if __name__=="__main__":
     GAME = Dmqh(4)

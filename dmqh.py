@@ -48,7 +48,6 @@ class _GetchWindows:
 
 getch = _Getch()
 
-
 class Dmqh(object):
     
     def __init__(self, n):
@@ -131,6 +130,37 @@ class Dmqh(object):
                 ret = ret + str(j) + '\t'
             ret+='\n'
         return ret
+    
+
+    def snake(self):
+        revert_direction = True
+        for line in self.dat:
+            revert_direction = not revert_direction
+            if revert_direction:
+                line = line[-1::-1]
+            for val in line:
+                yield val
+    
+    def evaluate(self):
+        """
+        Evaluates the value of a position:
+          - The slots matching the decreasing S are added to the total
+          - The other ones are subtracted
+        """
+        
+        count_plus = True
+        total = 0
+        last = 1000000
+        for val in self.snake():
+            if count_plus:
+                if val>last:
+                    count_plus = False
+                else:
+                    total+=val
+                    last = val
+            if not count_plus:
+                total-=val
+        return total
     
     
 if __name__=="__main__":

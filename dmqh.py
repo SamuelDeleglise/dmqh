@@ -51,6 +51,9 @@ class _GetchWindows:
 getch = _Getch()
 
 class Dmqh(object):
+    DEPTH = 5
+    N_BRANCHES_MONTE_CARLO = 2
+    MAX_LOSS_ALLOWED = 16 ###4
     
     def __init__(self, n):
         self.n = n
@@ -93,12 +96,7 @@ class Dmqh(object):
             print ""
             print "current position:"
             print self
-            #depth = np.floor(10./(len(self.empty_places()[0])+1))
-            #depth = max(depth, 2)
-            #depth = min(depth, 3)
-            depth = 5
-            print "depth :", depth
-            
+            depth = self.DEPTH
             suggestion = self.optimize(depth)
             print "press one of the keys i,j,k or l in the console to move... my advise:" \
             , suggestion
@@ -204,46 +202,12 @@ class Dmqh(object):
         iterator over the possible random fills at that stage.
         yields the resulting_game. 
         """    
-        """
-        n = 0
-        for val,x,y in self.snake_coords():
-            n+=1
-            if n>3:
-                break 
-            if val==0:
-                game = self.copy()
-                for v in [2,4]:
-                    game.dat[x,y] = v
-                    yield game
-        """            
-        for tries in range(2):
+                 
+        for tries in range(self.N_BRANCHES_MONTE_CARLO):
             game = self.copy()
             game.add_number()
             yield game
-            
-        """
-        for x,y in zip(*self.empty_places()):
-            for val in [2,4]:
-                game = self.copy()
-                game.dat[x,y] = val
-                yield game
-        """
-    def mean_score(self, depth):
-        """
-        Computes the mean score.
-        """
-        
-        mean_val = 0
-        n_fill = 0
-        if depth==0:
-            for pos in res.fill_list():
-                n_fill+=1
-                mean_val = mean_val + pos.evaluate()
-            mean_val/=n_fill
-            return mean_val
-        
-        self.optimize(depth)
-        
+
         
     def optimize(self, depth):
         if depth==0:
@@ -252,21 +216,15 @@ class Dmqh(object):
         directions = []
         previous_score = self.evaluate()
         for move, res in self.move_list():
-            if depth>10:
-                print "->"*(depth-1), move
             mean_score = 0
             n = 0
-            if res.evaluate()<previous_score:
+            if res.evaluate()<previous_score - self.MAX_LOSS_ALLOWED:
                 continue
             for pos in res.fill_list():
                 (dir, score) = pos.optimize(depth - 1)
-                
                 n+=1
-#                mean_score = min(mean_score, score)
                 mean_score+=score
             mean_score/=n
-            if depth>10:
-                print "->"*(depth-1), mean_score, dir
             mean_scores.append(mean_score)
             directions.append(move)
         if len(mean_scores)==0: ### GAME OVER

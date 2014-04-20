@@ -209,7 +209,7 @@ class Dmqh(object):
             yield game
 
         
-    def optimize(self, depth):
+    def optimize(self, depth, check_all=False):
         if depth==0:
             return ("", self.evaluate())
         mean_scores = []
@@ -218,17 +218,22 @@ class Dmqh(object):
         for move, res in self.move_list():
             mean_score = 0
             n = 0
-            if res.evaluate()<previous_score - self.MAX_LOSS_ALLOWED:
-                continue
+            if not check_all:
+                if res.evaluate()<previous_score - self.MAX_LOSS_ALLOWED:
+                    continue
             for pos in res.fill_list():
-                (dir, score) = pos.optimize(depth - 1)
+                (dir, score) = pos.optimize(depth - 1, check_all)
                 n+=1
                 mean_score+=score
             mean_score/=n
             mean_scores.append(mean_score)
             directions.append(move)
         if len(mean_scores)==0: ### GAME OVER
-            return ("", -1000000)
+            if check_all:
+                return ("", -1000000)
+            else:
+                return self.optimize(depth, check_all=True)
+            
         best = np.argmax(mean_scores)
         return (directions[best], mean_scores[best])
     

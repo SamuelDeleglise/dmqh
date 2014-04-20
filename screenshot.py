@@ -14,20 +14,23 @@ import Image
 
 class screengrab:
     def __init__(self):
+        
+        """
         try:
             import gtk
         except ImportError:
-            pass
+            print "gtk failed"
         else:
             self.screen = self.getScreenByGtk
-
+        """
         try:
             import PyQt4
         except ImportError:
-            pass
+            print "PyQt4 failed"
         else:
             self.screen = self.getScreenByQt
 
+        """
         try:
             import wx
         except ImportError:
@@ -35,18 +38,20 @@ class screengrab:
         else:
             self.screen = self.getScreenByWx
 
+        
         try:
             import ImageGrab
         except ImportError:
             pass
         else:
             self.screen = self.getScreenByPIL
-
+        """
 
     def getScreenByGtk(self):
         import gtk.gdk      
         w = gtk.gdk.get_default_root_window()
         sz = w.get_size()
+        
         pb = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB,False,8,sz[0],sz[1])
         pb = pb.get_from_drawable(w,w.get_colormap(),0,0,0,0,sz[0],sz[1])
         if (pb != None):

@@ -9,13 +9,17 @@ window.requestAnimationFrame(function () {
     l: 1//right
   }
 
+  a.inputManager.on("restart", guess);
+
   function guess() {
       $.post('/guess', {"game_state": localStorage.gameState}, function(result) {
-            a.move(MAPPING[result]);
-            guess();
+            if (!a.won || !a.over) {
+                a.move(MAPPING[result]);
+                guess();
+            }
       });
   }
 
-    guess();
+  guess();
 
 });

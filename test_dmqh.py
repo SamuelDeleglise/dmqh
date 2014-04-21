@@ -69,7 +69,15 @@ class TestDmqh(TestCase):
     def test_strange_bug(self):
         d = Dmqh(4)
         d.dat = np.array([[4,4,4,2], [2,2,2,4], [4,4,2,4], [4,4,2,2]])
-        
-        
+    def test_other_bug(self):
+        d = Dmqh(4)
+        d.dat = np.array([[512,256,64,32], [4,8,32,16], [8,4,4,4], [4,2,0,2]])
+        self.assertEqual(d.optimize(d.DEPTH), 'j')
+    def test_last(self):
+        d = Dmqh(4)
+        d.dat = np.array([[2048,512,256,64], [8,32,64,16], [2,16,32,8], [2,8,4,2]])
+        self.assertEqual(d.optimize(d.DEPTH), 'j')
+
+
 if __name__=="__main__":
     main()

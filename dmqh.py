@@ -55,57 +55,77 @@ class _GetchWindows:
 getch = _Getch()
 
 class Tree(object):
-    N_EVALS = 0
-    MAX_EVALS = 200
-    LOSE_PENALTY = -1000000000
-    GIVEUP_THRESHOLD = -32
-    dir = ["i", "j", "k", "l"]
+    N_EXTENDS = 0
+    MAX_EXTENDS = 200
+    LOSE_PENALTY = -100000000
+#    dir = ["i", "j", "k", "l"]
     
-    def __init__(self, game, parent, is_number_added=True):
+    def __init__(self, game, parent, dir, is_number_added=True):
+        self.dir = dir
         self.game  = game
         self.childs = None
         self.score = game.evaluate()
-        self.is_number_added = True
+        self.is_number_added = is_number_added
         self.parent = parent
+        self.interesting_child = None
     
     def calculate_score_from_immediate_children(self):
         """
         Updates the score with the best or worst score of the childs
         also updates the value of self.interesting_child
         """
+        
         child_scores = [child.score for child in self.childs]
-        if self.is_number_added:
-            interesting_index = np.argmax(child_scores)
+        if len(child_scores) == 0:
+            self.score = self.LOSE_PENALTY
         else:
-            interesting_index = np.argmin(child_scores)
-        self.score = child_scores[interesting_index]
-        self.interesting_child = self.childs[interesting_index]
+            if self.is_number_added:
+                interesting_index = np.argmax(child_scores)
+            else:
+                interesting_index = np.argmin(child_scores)
+            self.score = child_scores[interesting_index]
+            self.interesting_child = self.childs[interesting_index]
                     
     def create_childs(self):
         """
         Creates the childs, and then updates the score of this one
         """
+        if self.childs is not None:
+            raise ValueError("childs already exist!")
+        self.childs = []
         
         if self.is_number_added:
-            for dir, child in game.move_list():
-                self.childs.append(Tree(child, self, is_number_added=False))     
+            for dir, child in self.game.move_list():
+                self.childs.append(Tree(child, self, dir, is_number_added=False))     
         else:
-            for dir, child in game.fill_list():
-                self.childs.append(Tree(child, self, is_number_added=True))
+            for child in self.game.fill_list():
+                self.childs.append(Tree(child, self, "", is_number_added=True))
 
     def propagate_score_to_parents(self):
         """
         Updates the score of the parent taking
         into account this score... recursively
         """
-        if parent is None:
+        if self.parent is None:
             return
-        self.parent.calculate_score_from_immediate_childs()
-        self.propagate_score_to_parents(self)
-    
+        self.parent.calculate_score_from_immediate_children()
+        self.parent.propagate_score_to_parents()
     
     def extend_tree(self):
-        pass
+        Tree.N_EXTENDS += 1
+        if self.interesting_child is not None:
+            self.interesting_child.extend_tree()
+        else: # the tree should be extended here
+            self.create_childs()
+            self.calculate_score_from_immediate_children()
+            self.propagate_score_to_parents()
+            
+    def optimize(self):
+        Tree.N_EXTENDS = 0
+        while(Tree.N_EXTENDS<Tree.MAX_EXTENDS):
+            self.extend_tree()
+        return self.interesting_child.dir
+    """
     def test(self):
         if self.depth==0:
             score = self.current_game.evaluate()
@@ -148,7 +168,7 @@ class Tree(object):
                 scores.append(child.score)
         print ""
         return childs[np.argmax(scores)]
-         
+    """  
                     
 
 class Dmqh(object):
@@ -324,7 +344,7 @@ class Dmqh(object):
     
     
     def optimize(self, depth):
-        tree = Tree(self, depth)
+        tree = Tree(self, None, "")
         return tree.optimize()
         
     def optimize_old(self, depth, check_all=False):
@@ -364,8 +384,6 @@ class Dmqh(object):
                 best_dir = dir
                 best_score = score
         return best_dir
-
-
 
 
 def best_move(json_str): 

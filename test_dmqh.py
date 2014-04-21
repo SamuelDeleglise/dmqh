@@ -29,6 +29,14 @@ class TestDmqh(TestCase):
 
     def test_optimize(self):
         d = Dmqh(4)
+        d.dat = np.array([[2,0,2,0], [2,0,0,0], [0,0,0,0], [0,0,0,0]])
+        self.assertTrue(d.optimize(depth=1)[0]=="j")
+        
+    
+    
+"""
+    def test_optimize(self):
+        d = Dmqh(4)
         d.dat = np.array([[0,8,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
         self.assertTrue(d.optimize(depth=1)[0]=="j")
         
@@ -77,7 +85,7 @@ class TestDmqh(TestCase):
         d = Dmqh(4)
         d.dat = np.array([[2048,512,256,64], [8,32,64,16], [2,16,32,8], [2,8,4,2]])
         self.assertEqual(d.optimize(d.DEPTH), 'j')
-
+"""
 
 if __name__=="__main__":
     main()

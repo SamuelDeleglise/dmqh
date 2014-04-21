@@ -92,13 +92,16 @@ class Tree(object):
         """
         if self.childs is not None:
             raise ValueError("childs already exist!")
-        self.childs = []
         
         if self.is_number_added:
             for dir, child in self.game.move_list():
+                if self.childs is None:
+                    self.childs = []
                 self.childs.append(Tree(child, self, dir, is_number_added=False))     
         else:
             for child in self.game.fill_list():
+                if self.childs is None:
+                    self.childs = []
                 self.childs.append(Tree(child, self, "", is_number_added=True))
 
     def propagate_score_to_parents(self):
@@ -300,7 +303,7 @@ class Dmqh(object):
                 if val>last:
                     count_plus = False
                 else:
-                    total+=val**2
+                    total+=val
                     last = val
             if not count_plus:
                 pass
@@ -325,11 +328,13 @@ class Dmqh(object):
         iterator over the possible random fills at that stage.
         yields the resulting_game. 
         """    
-                 
-        for tries in range(self.N_BRANCHES_MONTE_CARLO):
-            game = self.copy()
-            game.add_number()
-            yield game
+        
+        for val, x, y in self.snake_coords():
+            for new_val in [2,4]:
+                if val==0:
+                    game = self.copy()
+                    game.dat[x, y] = new_val
+                    yield game
 
 
     """

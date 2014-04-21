@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 import copy
 
+import json
 
 class GameOver(BaseException): pass
 
@@ -59,45 +60,52 @@ class Tree(object):
     LOSE_PENALTY = -1000000000
     GIVEUP_THRESHOLD = -32
     dir = ["i", "j", "k", "l"]
-    def __init__(self, game, depth):
-        self.current_game = game
-        self.depth = depth
-        
-        if depth == 0:
-            self.childs = None
+    
+    def __init__(self, game, parent, is_number_added=True):
+        self.game  = game
+        self.childs = None
+        self.score = game.evaluate()
+        self.is_number_added = True
+        self.parent = parent
+    
+    def calculate_score_from_immediate_children(self):
+        """
+        Updates the score with the best or worst score of the childs
+        also updates the value of self.interesting_child
+        """
+        child_scores = [child.score for child in self.childs]
+        if self.is_number_added:
+            interesting_index = np.argmax(child_scores)
         else:
-            self.childs = {}
-            for dir in self.dir:
-                self.childs[dir] = Tree(self.current_game, depth-1)
+            interesting_index = np.argmin(child_scores)
+        self.score = child_scores[interesting_index]
+        self.interesting_child = self.childs[interesting_index]
+                    
+    def create_childs(self):
+        """
+        Creates the childs, and then updates the score of this one
+        """
         
-        self.n_pass = 0
-        self.score = 0
+        if self.is_number_added:
+            for dir, child in game.move_list():
+                self.childs.append(Tree(child, self, is_number_added=False))     
+        else:
+            for dir, child in game.fill_list():
+                self.childs.append(Tree(child, self, is_number_added=True))
+
+    def propagate_score_to_parents(self):
+        """
+        Updates the score of the parent taking
+        into account this score... recursively
+        """
+        if parent is None:
+            return
+        self.parent.calculate_score_from_immediate_childs()
+        self.propagate_score_to_parents(self)
     
     
-    
-    def next_to_test(self):
-        for dir in self.dir:
-            if self.childs[dir].n_pass==0:
-                game = self.current_game.copy()
-                if game.move(dir):
-                    return dir
-        scores = []
-        dirs = []
-        for dir, child in self.childs.iteritems():
-            game = self.current_game.copy()
-            if game.move(dir):
-                dirs.append(dir)
-                scores.append(child.score)
-        if len(dirs)==0:
-            return None
-        return dirs[np.argmax(scores)]
-    
-    def append_to_score(self, score):
-        self.score = (self.score*self.n_pass + score)
-        self.n_pass+=1
-        self.score/=self.n_pass
-        Tree.N_EVALS+=1        
-    
+    def extend_tree(self):
+        pass
     def test(self):
         if self.depth==0:
             score = self.current_game.evaluate()
@@ -347,6 +355,32 @@ class Dmqh(object):
         best = np.argmax(mean_scores)
         return (directions[best], mean_scores[best])
     
+    def optimize_naive(self):
+        best_score = -1
+        best_dir = ""
+        for dir, game in self.move_list():
+            score = game.evaluate()
+            if score>best_score:
+                best_dir = dir
+                best_score = score
+        return best_dir
+
+
+
+
+def best_move(json_str): 
+    game_state = json.loads(text)
+    game = Dmqh(4)    
+    for x,val in enumerate(game_state['grid']['cells']):
+        for y,val in enumerate(val):
+            if val==None:
+                val = 0
+            else:
+                val =  val['value']
+            game.dat[x,y] = val
+    game.dat = game.dat.T
+    return d.optimize_naive()
+
 if __name__=="__main__":
     GAME = Dmqh(4)
     GAME.play(auto=True)

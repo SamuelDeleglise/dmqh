@@ -3,6 +3,10 @@ from __future__ import division
 import numpy as np
 import copy
 
+import json
+
+class GameOver(BaseException): pass
+
 ### from http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user
 class _Getch:
     """Gets a single character from standard input.  Does not echo to the screen."""
@@ -50,11 +54,107 @@ class _GetchWindows:
 
 getch = _Getch()
 
-class Dmqh(object):
-    DEPTH = 5
-    N_BRANCHES_MONTE_CARLO = 2
-    MAX_LOSS_ALLOWED = 16 ###4
+class Tree(object):
+    N_EVALS = 0
+    MAX_EVALS = 200
+    LOSE_PENALTY = -1000000000
+    GIVEUP_THRESHOLD = -32
+    dir = ["i", "j", "k", "l"]
     
+    def __init__(self, game, parent, is_number_added=True):
+        self.game  = game
+        self.childs = None
+        self.score = game.evaluate()
+        self.is_number_added = True
+        self.parent = parent
+    
+    def calculate_score_from_immediate_children(self):
+        """
+        Updates the score with the best or worst score of the childs
+        also updates the value of self.interesting_child
+        """
+        child_scores = [child.score for child in self.childs]
+        if self.is_number_added:
+            interesting_index = np.argmax(child_scores)
+        else:
+            interesting_index = np.argmin(child_scores)
+        self.score = child_scores[interesting_index]
+        self.interesting_child = self.childs[interesting_index]
+                    
+    def create_childs(self):
+        """
+        Creates the childs, and then updates the score of this one
+        """
+        
+        if self.is_number_added:
+            for dir, child in game.move_list():
+                self.childs.append(Tree(child, self, is_number_added=False))     
+        else:
+            for dir, child in game.fill_list():
+                self.childs.append(Tree(child, self, is_number_added=True))
+
+    def propagate_score_to_parents(self):
+        """
+        Updates the score of the parent taking
+        into account this score... recursively
+        """
+        if parent is None:
+            return
+        self.parent.calculate_score_from_immediate_childs()
+        self.propagate_score_to_parents(self)
+    
+    
+    def extend_tree(self):
+        pass
+    def test(self):
+        if self.depth==0:
+            score = self.current_game.evaluate()
+            self.append_to_score(score)
+        else:
+            dir = self.next_to_test()
+            #import pdb
+            #pdb.set_trace()
+            if dir==None:
+                score = self.LOSE_PENALTY
+                self.append_to_score(score)
+            else:   
+                child_game = self.current_game.copy()
+                child_game.move(dir)
+                child_game.add_number()
+                
+                current = self.current_game.evaluate()
+                child = child_game.evaluate()
+                if child<current + Tree.GIVEUP_THRESHOLD:             
+                    self.childs[dir].score = min(self.childs[dir].score, child)
+                    self.childs[dir].append_to_score(child)
+                    return
+                else:
+                    self.childs[dir].current_game = child_game
+                    self.childs[dir].test()
+                self.n_pass+=1
+                self.score = max([child.score for child in self.childs.values()])
+        
+    def optimize(self):
+        Tree.N_EVALS = 0
+        while self.N_EVALS < self.MAX_EVALS:
+            self.test()
+        childs = []
+        scores = []
+        for dir, child in self.childs.iteritems():
+            game = self.current_game.copy()
+            if game.move(dir):
+                print dir, ":", child.score,"\t",
+                childs.append(dir)
+                scores.append(child.score)
+        print ""
+        return childs[np.argmax(scores)]
+         
+                    
+
+class Dmqh(object):
+    DEPTH = 3
+    N_BRANCHES_MONTE_CARLO = 1
+    MAX_LOSS_ALLOWED = 16 ###4 would like to try -128
     def __init__(self, n):
         self.n = n
         self.dat = np.zeros((n,n), dtype=int) 
@@ -66,7 +166,10 @@ class Dmqh(object):
         return np.where(self.dat==0)
     
     def add_number(self):
-        position = np.random.randint(len(self.empty_places()[0]))
+        n_slots = len(self.empty_places()[0])
+        if n_slots==0:
+            raise GameOver("could not add number")
+        position = np.random.randint(n_slots)
         val = 2**(1 + np.random.randint(11)//10)
         where = self.empty_places()
         self.dat[where[0][position],where[1][position]] = val
@@ -101,7 +204,7 @@ class Dmqh(object):
             print "press one of the keys i,j,k or l in the console to move... my advise:" \
             , suggestion
             if auto:
-                c = suggestion[0]
+                c = suggestion
                 self.move(c)
             else:
                 c = getch()
@@ -208,8 +311,23 @@ class Dmqh(object):
             game.add_number()
             yield game
 
+
+    """
+    def possible_moves(self):
+        possible = {}
+        for dir in ["i", "j", "k", "l"]:
+            game = self.copy()
+            if game.move(dir):
+                possible.append(dir)
+        return possible
+    """
+    
+    
+    def optimize(self, depth):
+        tree = Tree(self, depth)
+        return tree.optimize()
         
-    def optimize(self, depth, check_all=False):
+    def optimize_old(self, depth, check_all=False):
         if depth==0:
             return ("", self.evaluate())
         mean_scores = []
@@ -237,6 +355,32 @@ class Dmqh(object):
         best = np.argmax(mean_scores)
         return (directions[best], mean_scores[best])
     
+    def optimize_naive(self):
+        best_score = -1
+        best_dir = ""
+        for dir, game in self.move_list():
+            score = game.evaluate()
+            if score>best_score:
+                best_dir = dir
+                best_score = score
+        return best_dir
+
+
+
+
+def best_move(json_str): 
+    game_state = json.loads(text)
+    game = Dmqh(4)    
+    for x,val in enumerate(game_state['grid']['cells']):
+        for y,val in enumerate(val):
+            if val==None:
+                val = 0
+            else:
+                val =  val['value']
+            game.dat[x,y] = val
+    game.dat = game.dat.T
+    return d.optimize_naive()
+
 if __name__=="__main__":
     GAME = Dmqh(4)
     GAME.play(auto=True)

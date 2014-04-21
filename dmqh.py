@@ -75,35 +75,35 @@ class Tree(object):
         also updates the value of self.interesting_child
         """
         
-        child_scores = [child.score for child in self.childs]
-        if len(child_scores) == 0:
-            self.score = self.LOSE_PENALTY
-        else:
+        if self.childs is not None:
+            child_scores = [child.score for child in self.childs]
             if self.is_number_added:
                 interesting_index = np.argmax(child_scores)
             else:
                 interesting_index = np.argmin(child_scores)
             self.score = child_scores[interesting_index]
             self.interesting_child = self.childs[interesting_index]
-                    
+            
+        #if len(child_scores) == 0:
+        else:
+            self.score = self.LOSE_PENALTY
+          
     def create_childs(self):
         """
         Creates the childs, and then updates the score of this one
         """
         if self.childs is not None:
             raise ValueError("childs already exist!")
-        
+        self.childs = []
         if self.is_number_added:
             for dir, child in self.game.move_list():
-                if self.childs is None:
-                    self.childs = []
                 self.childs.append(Tree(child, self, dir, is_number_added=False))     
         else:
             for child in self.game.fill_list():
-                if self.childs is None:
-                    self.childs = []
                 self.childs.append(Tree(child, self, "", is_number_added=True))
-
+        if len(self.childs)==0:
+            self.childs = None
+            
     def propagate_score_to_parents(self):
         """
         Updates the score of the parent taking
@@ -329,6 +329,7 @@ class Dmqh(object):
         yields the resulting_game. 
         """    
         
+
         for val, x, y in self.snake_coords():
             for new_val in [2,4]:
                 if val==0:

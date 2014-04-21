@@ -366,21 +366,19 @@ class Dmqh(object):
         return best_dir
 
 
-
-
-def best_move(json_str): 
-    game_state = json.loads(text)
-    game = Dmqh(4)    
-    for x,val in enumerate(game_state['grid']['cells']):
-        for y,val in enumerate(val):
-            if val==None:
+def best_move(grid):
+    game = Dmqh(4)
+    for x, val in enumerate(grid['cells']):
+        for y, val in enumerate(val):
+            if val is None:
                 val = 0
             else:
-                val =  val['value']
-            game.dat[x,y] = val
+                val = val['value']
+            game.dat[x, y] = val
     game.dat = game.dat.T
-    return d.optimize_naive()
+    return game.optimize_naive()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     GAME = Dmqh(4)
     GAME.play(auto=True)

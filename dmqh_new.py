@@ -86,9 +86,7 @@ class Tree(object):
         self.initial_score = current_game.evaluate()
         self.total_score_ = 0
         self.possibilities_ = [] #i,j,k,l
-        
         self.n_blocked_ = copy.copy(ALLOWED_DICT)
-
         
     def simulate(self, current_game, depth):
         if self.VERBOSE > 1:
@@ -100,6 +98,8 @@ class Tree(object):
         else:
             try:
                 dir = self.pick_dir(current_game)
+                if self.VERBOSE > 1:
+                    print "moving :", dir
             except GameOver:
                 self.total_score_ += 0
                 self.n_played_ += 1
@@ -108,8 +108,10 @@ class Tree(object):
                 current_game.move(dir)
                 current_game.add_number()
                 self.childs[dir].simulate(current_game, depth-1)
-    
-            
+
+        if self.VERBOSE>=1:
+            if depth==3:
+                print dir
     @property
     def mean_score(self):
         if self.n_played_ == 0:
@@ -133,9 +135,9 @@ class Tree(object):
                 blocked.append(dir)
                 distribution.append(0)
         self.n_blocked_[tuple(blocked)] += 1
-        dir_index = random_from_distribution(distribution)
         if distribution == [0,0,0,0]:
             raise GameOver("can't move")
+        dir_index = random_from_distribution([1,1,1,1])#distribution)
         #print distribution
         return moves[dir_index]
     
@@ -162,12 +164,12 @@ class Tree(object):
         if self.parent is not None:
             self.parent.update_score()
       
-    def optimize(self, current_game, depth=5):
+    def optimize(self, current_game, depth):
         for i in range(Tree.N_SIMU_MAX):
             if self.VERBOSE >= 1:
                 print """============ NEW SIMU =========="""
             game = current_game.copy()
-            self.simulate(game, depth=depth)
+            self.simulate(game, depth)
     
         dirs = []
         scores = []
@@ -227,7 +229,7 @@ class Dmqh(object):
             print ""
             print "current position:"
             print self
-            suggestion = self.optimize()
+            suggestion = self.optimize(2)
             print "press one of the keys i,j,k or l in the console to move... my advise:" \
             , suggestion
             if auto:
@@ -353,9 +355,9 @@ class Dmqh(object):
     """
     
     
-    def optimize(self):
+    def optimize(self, depth=3):
         tree = Tree(None, self)
-        return tree.optimize(self)
+        return tree.optimize(self, depth)
         
     def optimize_old(self, depth, check_all=False):
         if depth==0:
@@ -407,7 +409,7 @@ def best_move(json_str):
                 val =  val['value']
             game.dat[x,y] = val
     game.dat = game.dat.T
-    return d.optimize_naive()
+    return d.optimize()
 
 if __name__=="__main__":
     GAME = Dmqh(4)

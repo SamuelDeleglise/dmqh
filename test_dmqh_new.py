@@ -51,6 +51,22 @@ class TestDmqh(TestCase):
         d = Dmqh(4)
         d.dat = np.array([[256,128,64,32], [0,4,8,32], [2,4,2,8], [0,2,8,2]])
         d.optimize(depth=3)
+        
+    def test_bug2(self):
+        d = Dmqh(4)
+        d.dat = np.array([[2048,1024,256,32], [16,32,64,16], [2,16,8,4], [2,8,4,2]])
+        print d
+        print d.optimize(depth=3)
+        
+    def test_bug3(self):
+        d = Dmqh(4)
+        d.dat = np.array([[1024,512,256,128], [0,0,32,0], [0,0,0,0],[0,0,0,2]])
+        print d
+        print d.optimize(depth=5)
+    
+    def update_score(self):
+        pass
+    
 """    def test_optimize(self):
         d = Dmqh(4)
         d.dat = np.array([[2,0,2,0], [2,0,0,0], [0,0,0,0], [0,0,0,0]])

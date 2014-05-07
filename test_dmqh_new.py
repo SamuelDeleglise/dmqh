@@ -1,4 +1,6 @@
-from dmqh_new import Dmqh
+from __future__ import division
+from dmqh_new import Dmqh, random_from_distribution
+
 
 from unittest import TestCase, main
 import numpy as np
@@ -27,12 +29,33 @@ class TestDmqh(TestCase):
          d2.dat = np.array([[16,8,4,2], [0,8,4,2], [0,8,4,2], [0,8,4,2]])
          self.assertGreater(d.evaluate(), d2.evaluate())
 
-    def test_optimize(self):
+    def test_random(self):
+        vals = {0:0,1:0,2:0,3:0}
+        total = 10000
+        for i in range(total):
+            res = random_from_distribution([10,25,25,40])
+            vals[res]+=1
+        self.assertGreater(vals[0]/total, 0.05)
+        self.assertGreater(0.15,vals[0]/total)
+        
+        self.assertGreater(vals[1]/total, 0.2)
+        self.assertGreater(0.3,vals[1]/total)
+
+        self.assertGreater(vals[2]/total, 0.2)
+        self.assertGreater(0.3,vals[2]/total)
+        
+        self.assertGreater(vals[3]/total, 0.35)
+        self.assertGreater(0.45, vals[3]/total)
+        
+    def test_bug(self):
+        d = Dmqh(4)
+        d.dat = np.array([[256,128,64,32], [0,4,8,32], [2,4,2,8], [0,2,8,2]])
+        d.optimize(depth=3)
+"""    def test_optimize(self):
         d = Dmqh(4)
         d.dat = np.array([[2,0,2,0], [2,0,0,0], [0,0,0,0], [0,0,0,0]])
-        self.assertTrue(d.optimize(depth=1)[0]=="j")
-        
-    
+        self.assertTrue(d.optimize(depth=1)[0]=="j")     
+""" 
     
 """
     def test_optimize(self):

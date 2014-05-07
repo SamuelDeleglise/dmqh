@@ -1,9 +1,11 @@
 from __future__ import division
 
 import numpy as np
+from random import random
 import copy
 
 import json
+import itertools
 
 class GameOver(BaseException): pass
 
@@ -54,105 +56,131 @@ class _GetchWindows:
 
 getch = _Getch()
 
-class Tree(object):
-    N_EVALS = 0
-    MAX_EVALS = 200
-    LOSE_PENALTY = -1000000000
-    GIVEUP_THRESHOLD = -32
-    dir = ["i", "j", "k", "l"]
-    
-    def __init__(self, game, parent, is_number_added=True):
-        self.game  = game
-        self.childs = None
-        self.score = game.evaluate()
-        self.is_number_added = True
-        self.parent = parent
-    
-    def calculate_score_from_immediate_children(self):
-        """
-        Updates the score with the best or worst score of the childs
-        also updates the value of self.interesting_child
-        """
-        child_scores = [child.score for child in self.childs]
-        if self.is_number_added:
-            interesting_index = np.argmax(child_scores)
-        else:
-            interesting_index = np.argmin(child_scores)
-        self.score = child_scores[interesting_index]
-        self.interesting_child = self.childs[interesting_index]
-                    
-    def create_childs(self):
-        """
-        Creates the childs, and then updates the score of this one
-        """
-        
-        if self.is_number_added:
-            for dir, child in game.move_list():
-                self.childs.append(Tree(child, self, is_number_added=False))     
-        else:
-            for dir, child in game.fill_list():
-                self.childs.append(Tree(child, self, is_number_added=True))
 
-    def propagate_score_to_parents(self):
-        """
-        Updates the score of the parent taking
-        into account this score... recursively
-        """
-        if parent is None:
-            return
-        self.parent.calculate_score_from_immediate_childs()
-        self.propagate_score_to_parents(self)
-    
-    
-    def extend_tree(self):
-        pass
-    def test(self):
-        if self.depth==0:
-            score = self.current_game.evaluate()
-            self.append_to_score(score)
+def random_from_distribution(distribution):
+    total = sum(distribution)
+    seed = random()*total
+    for index, n in enumerate(distribution):
+        if seed<n:
+            return index
         else:
-            dir = self.next_to_test()
+            seed-=n
+    return index
+
+ALLOWED_DICT = {}
+for n in range(5):
+    for combi in itertools.combinations(('i','j','k','l'),n):
+        ALLOWED_DICT[combi] = 0
+
+
+class Tree(object):
+    N_SIMU_MAX = 500
+    VERBOSE = 0
+#    dir = ["i", "j", "k", "l"]
+    
+    def __init__(self, parent, current_game):
+        self.childs = {}
+        self.parent = parent
+        
+        self.n_played_ = 0
+        self.initial_score = current_game.evaluate()
+        self.total_score_ = 0
+        self.possibilities_ = [] #i,j,k,l
+        
+        self.n_blocked_ = copy.copy(ALLOWED_DICT)
+
+        
+    def simulate(self, current_game, depth):
+        if self.VERBOSE > 1:
+            print current_game
+        if depth == 0:
+            self.total_score_ += current_game.evaluate()
+            self.n_played_ += 1
+            self.parent.update_score()
+        else:
+            try:
+                dir = self.pick_dir(current_game)
+            except GameOver:
+                self.total_score_ += 0
+                self.n_played_ += 1
+                self.parent.update_score()
+            else:
+                current_game.move(dir)
+                current_game.add_number()
+                self.childs[dir].simulate(current_game, depth-1)
+    
+            
+    @property
+    def mean_score(self):
+        if self.n_played_ == 0:
+            return self.initial_score
+        return self.total_score_/self.n_played_
+
+    def pick_dir(self, current_game):
+        blocked = []
+        distribution = []
+        moves = ['i','j','k','l']
+        self.possibilities_ = []
+        for dir in moves:
+            game = current_game.copy()
+            if game.move(dir):
+                game.add_number()
+                if not dir in self.childs:
+                    self.childs[dir] = Tree(self, game)
+                distribution.append(self.childs[dir].mean_score+0.1)
+                self.possibilities_.append(dir)
+            else:
+                blocked.append(dir)
+                distribution.append(0)
+        self.n_blocked_[tuple(blocked)] += 1
+        dir_index = random_from_distribution(distribution)
+        if distribution == [0,0,0,0]:
+            raise GameOver("can't move")
+        #print distribution
+        return moves[dir_index]
+    
+    def update_score(self):
+        self.n_played_ += 1
+        
+        scores_dir = [(self.childs[dir].mean_score, dir) for dir in self.possibilities_] 
+        scores_dir = sorted(scores_dir, reverse=True)
+        
+        played = 0
+        combi = []
+        to_play = self.n_played_
+        total_score = 0
+        for score, dir in scores_dir:
+            combi.append(dir)
+            combi_tuple = tuple(np.sort(combi))
+            n_times_blocked = self.n_blocked_[combi_tuple]
+            n_play_this = to_play - n_times_blocked
+            total_score += score*n_play_this
+            to_play = n_times_blocked
+        self.total_score_ = total_score
             #import pdb
             #pdb.set_trace()
-            if dir==None:
-                score = self.LOSE_PENALTY
-                self.append_to_score(score)
-            else:   
-                child_game = self.current_game.copy()
-                child_game.move(dir)
-                child_game.add_number()
-                
-                current = self.current_game.evaluate()
-                child = child_game.evaluate()
-                if child<current + Tree.GIVEUP_THRESHOLD:             
-                    self.childs[dir].score = min(self.childs[dir].score, child)
-                    self.childs[dir].append_to_score(child)
-                    return
-                else:
-                    self.childs[dir].current_game = child_game
-                    self.childs[dir].test()
-                self.n_pass+=1
-                self.score = max([child.score for child in self.childs.values()])
-        
-    def optimize(self):
-        Tree.N_EVALS = 0
-        while self.N_EVALS < self.MAX_EVALS:
-            self.test()
-        childs = []
+        if self.parent is not None:
+            self.parent.update_score()
+      
+    def optimize(self, current_game, depth=5):
+        for i in range(Tree.N_SIMU_MAX):
+            if self.VERBOSE >= 1:
+                print """============ NEW SIMU =========="""
+            game = current_game.copy()
+            self.simulate(game, depth=depth)
+    
+        dirs = []
         scores = []
         for dir, child in self.childs.iteritems():
-            game = self.current_game.copy()
-            if game.move(dir):
-                print dir, ":", child.score,"\t",
-                childs.append(dir)
-                scores.append(child.score)
-        print ""
-        return childs[np.argmax(scores)]
-         
-                    
-
+            score = child.mean_score 
+            if self.VERBOSE > 0:
+                print dir, ": ", child.n_played_," times played, mean_score: ", score
+            dirs.append(dir)
+            scores.append(score)
+        best_index = np.argmax(scores)
+        return dirs[best_index]
+            
 class Dmqh(object):
-    DEPTH = 3
     N_BRANCHES_MONTE_CARLO = 1
     MAX_LOSS_ALLOWED = 16 ###4 would like to try -128
     def __init__(self, n):
@@ -199,8 +227,7 @@ class Dmqh(object):
             print ""
             print "current position:"
             print self
-            depth = self.DEPTH
-            suggestion = self.optimize(depth)
+            suggestion = self.optimize()
             print "press one of the keys i,j,k or l in the console to move... my advise:" \
             , suggestion
             if auto:
@@ -280,7 +307,7 @@ class Dmqh(object):
                 if val>last:
                     count_plus = False
                 else:
-                    total+=val**2
+                    total+=val
                     last = val
             if not count_plus:
                 pass
@@ -305,11 +332,14 @@ class Dmqh(object):
         iterator over the possible random fills at that stage.
         yields the resulting_game. 
         """    
-                 
-        for tries in range(self.N_BRANCHES_MONTE_CARLO):
-            game = self.copy()
-            game.add_number()
-            yield game
+        
+
+        for val, x, y in self.snake_coords():
+            for new_val in [2,4]:
+                if val==0:
+                    game = self.copy()
+                    game.dat[x, y] = new_val
+                    yield game
 
 
     """
@@ -323,9 +353,9 @@ class Dmqh(object):
     """
     
     
-    def optimize(self, depth):
-        tree = Tree(self, depth)
-        return tree.optimize()
+    def optimize(self):
+        tree = Tree(None, self)
+        return tree.optimize(self)
         
     def optimize_old(self, depth, check_all=False):
         if depth==0:
@@ -376,9 +406,9 @@ def best_move(grid):
                 val = val['value']
             game.dat[x, y] = val
     game.dat = game.dat.T
-    return game.optimize_naive()
+    return game.optimize()
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     GAME = Dmqh(4)
     GAME.play(auto=True)

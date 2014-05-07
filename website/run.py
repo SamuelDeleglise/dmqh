@@ -1,7 +1,7 @@
 import json
 
 from flask import Flask, request
-from dmqh import best_move
+from dmqh_new import best_move
 app = Flask(__name__)
 
 
